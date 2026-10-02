@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plano Interactivo - Quinta El Molino</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="1024x1024" href="img/favicon.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; text-align: center; padding: 20px; background: #f4f5f7; color: #222; }
+  h1 { margin-bottom: 4px; font-size: 22px; }
+  .subtitle { color: #666; margin-top: 0; margin-bottom: 18px; font-size: 14px; }
+  .leyenda { display: flex; justify-content: center; gap: 22px; margin-bottom: 18px; flex-wrap: wrap; font-size: 14px; }
+  .leyenda span { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 16px; height: 16px; border-radius: 4px; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
+  .plano-wrapper { position: relative; display: inline-block; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden; max-width: 700px; width: 100%; }
+  img { width: 100%; height: auto; display: block; }
+  .lote { position: absolute; cursor: pointer; border: 2px solid rgba(255,255,255,0.7); transition: filter 0.15s ease, transform 0.1s ease; }
+  .lote:hover { filter: brightness(1.7) saturate(2.2); box-shadow: 0 0 14px 4px currentColor, 0 0 28px 8px currentColor; z-index: 5; }
+  .lote.disponible:hover { color: #22c55e; }
+  .lote.reservado:hover  { color: #eab308; }
+  .lote.vendido:hover    { color: #ef4444; }
+  .lote:active { transform: scale(0.97); }
+  .lote.disponible { background: rgba(34, 197, 94, 0.4); }
+  .lote.reservado  { background: rgba(234, 179, 8, 0.5); }
+  .lote.vendido    { background: rgba(239, 68, 68, 0.55); }
+  .lote .num { position: absolute; top: 2px; left: 3px; font-size: 9px; font-weight: 700; color: #1a1a1a; text-shadow: 0 0 2px rgba(255,255,255,0.9); pointer-events: none; }
+  #modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
+  #modal .card { background: #fff; padding: 26px; border-radius: 16px; max-width: 380px; width: 100%; text-align: left; position: relative; }
+  #modal .card h2 { margin: 0 0 10px 0; font-size: 20px; }
+  #modal .estado-tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+  #modal .estado-tag.disponible { background: #16a34a; }
+  #modal .estado-tag.reservado  { background: #ca8a04; }
+  #modal .estado-tag.vendido    { background: #dc2626; }
+  #modal p { margin: 6px 0; font-size: 15px; }
+  #btn-whatsapp { display: flex; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; padding: 13px 18px; border: none; border-radius: 50px; width: 100%; font-size: 16px; margin-top: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(37, 211, 102, 0.45); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  #btn-whatsapp:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(37, 211, 102, 0.55); }
+  #btn-whatsapp:active:not(:disabled) { transform: translateY(0); }
+  #btn-whatsapp:disabled { background: #b6b6b6; cursor: not-allowed; box-shadow: none; }
+  #btn-whatsapp svg, #btn-whatsapp .wa-icon { width: 22px; height: 22px; flex-shrink: 0; }
+  #btn-cerrar { background: #eee; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 15px; cursor: pointer; }
+
+  #leadModal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 2000; padding: 16px; }
+  #leadModal.show { display: flex; }
+  #leadModal .card { background: #fff; padding: 26px; border-radius: 16px; max-width: 360px; width: 100%; text-align: left; position: relative; }
+  #leadModal .card h2 { margin: 0 0 6px 0; font-size: 18px; }
+  #leadModal .card p.sub { margin: 0 0 16px 0; font-size: 13px; color: #666; }
+  #leadModal label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px; color: #444; }
+  #leadModal input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1.5px solid #ddd; font-size: 14px; margin-bottom: 12px; font-family: inherit; }
+  #leadModal input:focus { outline: none; border-color: #25D366; }
+  #leadModal .consent { font-size: 11px; color: #888; margin: 0 0 14px; line-height: 1.4; }
+  .phone-input-group { display: flex; align-items: stretch; border: 1.5px solid #ddd; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+  .phone-input-group:focus-within { border-color: #25D366; }
+  .phone-prefix { display: flex; align-items: center; gap: 5px; padding: 0 10px; background: #f5f5f5; font-size: 13.5px; font-weight: 700; color: #444; border-right: 1.5px solid #ddd; white-space: nowrap; flex-shrink: 0; }
+  .phone-input-group input { border: none; border-radius: 0; margin-bottom: 0; flex: 1; min-width: 0; padding: 10px 12px; }
+  .phone-input-group input:focus { outline: none; border-color: transparent; }
+  #btn-cerrar-lead { background: #eee; margin-top: 4px; width: 100%; padding: 10px; border: none; border-radius: 10px; font-size: 13px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>Quinta El Molino</h1>
+<p class="subtitle">Toca un lote para ver su información y estado</p>
+
+<div class="leyenda">
+  <span><i class="swatch" style="background:rgba(34,197,94,0.6)"></i> Disponible</span>
+  <span><i class="swatch" style="background:rgba(234,179,8,0.6)"></i> Reservado</span>
+  <span><i class="swatch" style="background:rgba(239,68,68,0.6)"></i> Vendido</span>
+</div>
+
+<div class="plano-wrapper">
+  <img src="plano-molino.jpg" alt="Plano Quinta El Molino">
+  <div id="lotes-container"></div>
+</div>
+
+<div id="modal">
+  <div class="card">
+    <h2 id="lote-nombre"></h2>
+    <span id="lote-estado-tag" class="estado-tag"></span>
+    <p><strong>Área:</strong> <span id="lote-area"></span></p>
+    <p id="lote-precio-row"><strong>Precio:</strong> <span id="lote-precio"></span></p>
+    <button id="btn-whatsapp">
+      <img src="img/ICONS/whatsapp.svg" alt="" class="wa-icon">
+      <span>Consultar por WhatsApp</span>
+    </button>
+    <button id="btn-cerrar">Cerrar</button>
+  </div>
+</div>
+
+<div id="leadModal">
+  <div class="card">
+    <h2>Antes de continuar</h2>
+    <p class="sub">Déjanos tus datos y te escribimos por WhatsApp al toque.</p>
+    <form id="leadFormPlano">
+      <label>Nombre</label>
+      <input type="text" id="leadNombrePlano" required placeholder="Tu nombre">
+      <label>Celular</label>
+      <div class="phone-input-group">
+        <span class="phone-prefix">🇵🇪 +51</span>
+        <input type="tel" id="leadCelularPlano" required placeholder="9XX XXX XXX" pattern="[0-9]{9}" maxlength="9" inputmode="numeric">
+      </div>
+      <p class="consent">Al enviar aceptas que te contactemos por este medio para brindarte información.</p>
+      <button type="submit" id="btn-whatsapp-lead">
+        <img src="img/ICONS/whatsapp.svg" alt="" style="width:20px;height:20px;vertical-align:middle;margin-right:8px">
+        Continuar a WhatsApp
+      </button>
+    </form>
+    <button type="button" id="btn-cerrar-lead">Cancelar</button>
+  </div>
+</div>
+
+<script>
+  const lotes = [
+    {
+        "numero": "01",
+        "left": 69.5,
+        "top": 82.35,
+        "width": 24.5,
+        "height": 7.7,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "02",
+        "left": 69.5,
+        "top": 74.8,
+        "width": 24.5,
+        "height": 7.8,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "03",
+        "left": 69.5,
+        "top": 67,
+        "width": 24.5,
+        "height": 8,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "04",
+        "left": 69.5,
+        "top": 59.3,
+        "width": 24.5,
+        "height": 8,
+        "area": 120.4,
+        "precio": 119000,
+        "estado": "disponible"
+    },
+    {
+        "numero": "05",
+        "left": 69.5,
+        "top": 52,
+        "width": 24.5,
+        "height": 8,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "06",
+        "left": 69.5,
+        "top": 43.5,
+        "width": 24.5,
+        "height": 8.34,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "07",
+        "left": 69.5,
+        "top": 35.8,
+        "width": 24.5,
+        "height": 8.34,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "08",
+        "left": 69.5,
+        "top": 27.8,
+        "width": 24.5,
+        "height": 8.1,
+        "area": 120.4,
+        "precio": 112200,
+        "estado": "disponible"
+    },
+    {
+        "numero": "09",
+        "left": 69.5,
+        "top": 19.9,
+        "width": 24.5,
+        "height": 8.34,
+        "area": 120.4,
+        "precio": 119000,
+        "estado": "disponible"
+    },
+    {
+        "numero": "10",
+        "left": 37.6,
+        "top": 82.2,
+        "width": 22.5,
+        "height": 7.6,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "11",
+        "left": 37.6,
+        "top": 74.8,
+        "width": 22.5,
+        "height": 7.9,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "12",
+        "left": 37.6,
+        "top": 67.3,
+        "width": 22.5,
+        "height": 7.8,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "13",
+        "left": 37.6,
+        "top": 59.6,
+        "width": 22.5,
+        "height": 7.9,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "14",
+        "left": 37.6,
+        "top": 52,
+        "width": 22.5,
+        "height": 8,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "15",
+        "left": 37.6,
+        "top": 44,
+        "width": 22.5,
+        "height": 8.34,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "16",
+        "left": 37.6,
+        "top": 36,
+        "width": 22.5,
+        "height": 8.34,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "17",
+        "left": 37.6,
+        "top": 27.9,
+        "width": 22.5,
+        "height": 8.34,
+        "area": 120.4,
+        "precio": 115600,
+        "estado": "disponible"
+    },
+    {
+        "numero": "18",
+        "left": 37.6,
+        "top": 19.8,
+        "width": 22.5,
+        "height": 8.34,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "19",
+        "left": 15.3,
+        "top": 82.2,
+        "width": 22.5,
+        "height": 7.6,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "20",
+        "left": 15.3,
+        "top": 74.8,
+        "width": 22.5,
+        "height": 7.8,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "21",
+        "left": 15.3,
+        "top": 67.3,
+        "width": 22.5,
+        "height": 7.8,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+
+    {
+        "numero": "22",
+        "left": 15.3,
+        "top": 59.6,
+        "width": 22.5,
+        "height": 7.9,
+        "area": 120.4,
+        "precio": 108800,
+        "estado": "disponible"
+    },
+    {
+        "numero": "23",
+        "left": 15.3,
+        "top": 52,
+        "width": 22.5,
+        "height": 8,
+        "area": 120.4,
+        "precio": 108800,
+        "estado": "disponible"
+    },
+    {
+        "numero": "24",
+        "left": 15.3,
+        "top": 44,
+        "width": 22.5,
+        "height": 8.1,
+        "area": 120.4,
+        "precio": 108800,
+        "estado": "disponible"
+    },
+    {
+        "numero": "25",
+        "left": 15.3,
+        "top": 36,
+        "width": 22.5,
+        "height": 8.2,
+        "area": 120.4,
+        "precio": 108800,
+        "estado": "disponible"
+    },
+    {
+        "numero": "26",
+        "left": 15.3,
+        "top": 27.9,
+        "width": 22.5,
+        "height": 8.2,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "27",
+        "left": 15.3,
+        "top": 19.8,
+        "width": 22.5,
+        "height": 8.2,
+        "area": 120.4,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "28",
+        "left": 84,
+        "top": 2.5,
+        "width": 9.96,
+        "height": 12.6,
+        "area": 90.63,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "29",
+        "left": 74,
+        "top": 2.5,
+        "width": 9.96,
+        "height": 12.6,
+        "area": 90.63,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "30",
+        "left": 64,
+        "top": 2.5,
+        "width": 9.96,
+        "height": 12.6,
+        "area": 90.63,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "32",
+        "left": 44.9,
+        "top": 2.5,
+        "width": 9.96,
+        "height": 12.6,
+        "area": 90.63,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "33",
+        "left": 35.23,
+        "top": 2.5,
+        "width": 9.96,
+        "height": 12.6,
+        "area": 90.63,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "34",
+        "left": 25.26,
+        "top": 2.5,
+        "width": 9.96,
+        "height": 12.6,
+        "area": 90.63,
+        "precio": 0,
+        "estado": "vendido"
+    },
+    {
+        "numero": "35",
+        "left": 15.3,
+        "top": 2.5,
+        "width": 9.96,
+        "height": 12.6,
+        "area": 90.63,
+        "precio": 0,
+        "estado": "vendido"
+    }
+];
+
+  const numeroWhatsApp = "51922764042";
+  const estadoLabel = { disponible: "Disponible", reservado: "Reservado", vendido: "Vendido" };
+
+  function formatArea(a) { return a.toFixed(2) + " m²"; }
+  function formatPrecio(p) { return p > 0 ? "S/ " + p.toLocaleString('es-PE') : "Consultar precio"; }
+
+  const container = document.getElementById('lotes-container');
+
+  function render() {
+    container.innerHTML = '';
+    lotes.forEach(l => {
+      const div = document.createElement('div');
+      div.className = 'lote ' + l.estado;
+      div.style.left = l.left + '%';
+      div.style.top = l.top + '%';
+      div.style.width = l.width + '%';
+      div.style.height = l.height + '%';
+      div.innerHTML = '<span class="num">' + l.numero + '</span>';
+      div.onclick = () => verLote(l.numero);
+      container.appendChild(div);
+    });
+  }
+
+  let loteActual = null;
+
+  function verLote(numero) {
+    const l = lotes.find(x => x.numero === numero);
+    loteActual = l;
+    document.getElementById('lote-nombre').innerText = 'Lote ' + l.numero;
+    document.getElementById('lote-area').innerText = formatArea(l.area);
+    document.getElementById('lote-precio').innerText = formatPrecio(l.precio);
+    const tag = document.getElementById('lote-estado-tag');
+    tag.className = 'estado-tag ' + l.estado;
+    tag.innerText = estadoLabel[l.estado];
+
+    const btn = document.getElementById('btn-whatsapp');
+    if (l.estado === 'vendido') {
+      btn.disabled = true;
+      btn.querySelector('span').innerText = 'Lote vendido';
+    } else {
+      btn.disabled = false;
+      btn.querySelector('span').innerText = 'Consultar por WhatsApp';
+    }
+
+    // Avisa a la landing (index.html) para que el simulador de financiamiento
+    // muestre el lote elegido, aunque el usuario cierre este modal sin cotizar aquí.
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'loteSeleccionado',
+        numero: l.numero,
+        area: l.area,
+        precio: l.precio,
+        estado: l.estado
+      }, '*');
+    }
+
+    document.getElementById('modal').style.display = 'flex';
+  }
+
+  function cerrarModal() { document.getElementById('modal').style.display = 'none'; }
+
+  document.getElementById('btn-cerrar').onclick = cerrarModal;
+  document.getElementById('modal').addEventListener('click', (e) => {
+    if (e.target.id === 'modal') cerrarModal();
+  });
+
+  document.getElementById('btn-whatsapp').onclick = () => {
+    if (!loteActual || loteActual.estado === 'vendido') return;
+    document.getElementById('leadModal').classList.add('show');
+    setTimeout(() => { document.getElementById('leadNombrePlano').focus(); }, 150);
+  };
+
+  const LEAD_SHEET_URL = "https://script.google.com/macros/s/AKfycbx-HW4G6AtRxeLF4xKTDVExlhKvBRUrHG_FNGwrAJFdSuKxYIgi-pBeud9GT11gX1g7/exec";
+
+  document.getElementById('btn-cerrar-lead').onclick = () => {
+    document.getElementById('leadModal').classList.remove('show');
+  };
+
+  document.getElementById('leadModal').addEventListener('click', (e) => {
+    if (e.target.id === 'leadModal') {
+      document.getElementById('leadModal').classList.remove('show');
+    }
+  });
+
+  document.getElementById('leadFormPlano').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('leadNombrePlano').value.trim();
+    const celularDigits = document.getElementById('leadCelularPlano').value.trim();
+    if (!nombre || !celularDigits) return;
+    if (!/^[0-9]{9}$/.test(celularDigits)) {
+      document.getElementById('leadCelularPlano').focus();
+      document.getElementById('leadCelularPlano').reportValidity();
+      return;
+    }
+    const celular = '+51 ' + celularDigits;
+
+    try {
+      fetch(LEAD_SHEET_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          nombre: nombre,
+          celular: celular,
+          proyecto: document.querySelector('h1').textContent + ' - Lote ' + (loteActual ? loteActual.numero : ''),
+          fecha: new Date().toISOString()
+        })
+      }).catch(() => {});
+    } catch (err) {}
+
+    const mensaje = 'Hola Julio, estoy interesado en el Lote ' + loteActual.numero + ' de Quinta El Molino (' + formatArea(loteActual.area) + ').' + (loteActual.precio > 0 ? ' Precio ' + formatPrecio(loteActual.precio) + '.' : '') + ' ¿Me puedes dar más información?';
+    const mensajeFinal = 'Me llamo ' + nombre + ', mi celular es ' + celular + '. ' + mensaje;
+    window.open('https://wa.me/' + numeroWhatsApp + '?text=' + encodeURIComponent(mensajeFinal), '_blank');
+
+    document.getElementById('leadModal').classList.remove('show');
+    document.getElementById('leadFormPlano').reset();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.getElementById('leadModal').classList.remove('show');
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
